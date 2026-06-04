@@ -18,3 +18,53 @@ body {
   width: 100%;
   z-index: 0;
 }
+
+/* Teamleader: desktop-first planning workspace, usable on phone */
+@layer components {
+  .tl-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    height: calc(100dvh - 5.5rem);
+  }
+
+  @media (min-width: 640px) {
+    .tl-workspace {
+      height: calc(100dvh - 6rem);
+    }
+  }
+
+  .tl-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: rgb(241 245 249 / 0.95);
+    backdrop-filter: blur(6px);
+  }
+
+  @media (min-width: 1280px) {
+    .tl-toolbar {
+      position: static;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      backdrop-filter: none;
+    }
+  }
+
+  .tl-side-panel {
+    max-height: 14rem;
+    overflow-y: auto;
+  }
+
+  @media (min-width: 1280px) {
+    .tl-side-panel {
+      max-height: none;
+      overflow: visible;
+    }
+  }
+}

@@ -211,8 +211,11 @@ export function HomePage() {
         ) : (
           <ul className="mt-3 divide-y divide-slate-100">
             {events.map((ev) => (
-              <li key={ev.id} className="flex items-center justify-between py-3">
-                <div>
+              <li
+                key={ev.id}
+                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
                   <p className="font-semibold text-navy">
                     {ev.name || ev.event_id}{' '}
                     <span className="font-mono text-sm text-slate-500">({ev.event_id})</span>
@@ -221,7 +224,7 @@ export function HomePage() {
                     <p className="text-xs text-slate-500">Vorjahr: {ev.prev_event_id}</p>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   {ev.prev_event_id ? (
                     <a
                       href={`https://www.sportograf.com/de/gallery/${ev.prev_event_id}`}

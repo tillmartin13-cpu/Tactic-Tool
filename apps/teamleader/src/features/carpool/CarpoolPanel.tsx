@@ -1,52 +1,75 @@
 import { canEditCarpools } from '@sg/auth';
 import type { UserRole } from '@sg/auth';
 import { Button } from '@sg/ui';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 
-interface CarpoolPanelProps {
-  role?: UserRole | null;
+interface VehicleRow {
+  id: string;
+  label: string;
+  driver_name: string | null;
 }
 
-/**
- * Stub for Fahrgemeinschaften — see docs/features/carpool.md
- */
-export function CarpoolPanel({ role = null }: CarpoolPanelProps) {
+export function CarpoolPanel({
+  eventUuid,
+  role,
+}: {
+  eventUuid: string;
+  role: UserRole | null;
+}) {
+  const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
+  const [label, setLabel] = useState('');
   const canEdit = role != null && canEditCarpools(role);
 
+  const load = () => {
+    if (!supabase) return;
+    void supabase
+      .from('event_vehicles')
+      .select('id, label, driver_name')
+      .eq('event_id', eventUuid)
+      .then(({ data }) => setVehicles(data ?? []));
+  };
+
+  useEffect(() => {
+    load();
+  }, [eventUuid]);
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-navy">Fahrgemeinschaften</h2>
-      <p className="mt-2 text-sm text-slate-600">
-        Autos anlegen und Fotografen-Kürzel per Drag &amp; Drop zuordnen — für die
-        Anreise-Logistik ohne extra Tabellen voller Adressdaten.
-      </p>
-
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-        {['Auto 1', 'Auto 2'].map((label) => (
-          <div
-            key={label}
-            className="min-w-[140px] flex-shrink-0 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-3"
-          >
-            <p className="text-xs font-medium text-navy">{label}</p>
-            <div className="mt-2 flex flex-wrap gap-1">
-              <span className="rounded-full bg-brand-red px-2 py-0.5 text-xs font-bold text-white">
-                MK
-              </span>
-            </div>
-          </div>
+    <section className="rounded-lg border border-slate-200 bg-white p-3">
+      <h3 className="text-sm font-semibold text-navy">Fahrgemeinschaften</h3>
+      <ul className="mt-2 space-y-1 text-xs">
+        {vehicles.map((v) => (
+          <li key={v.id}>
+            {v.label}
+            {v.driver_name ? ` · ${v.driver_name}` : ''}
+          </li>
         ))}
-        <div className="flex min-w-[100px] items-center justify-center rounded-lg border-2 border-dashed border-slate-200 text-xs text-slate-400">
-          + Auto
+        {!vehicles.length && <li className="text-slate-500">Noch keine Autos</li>}
+      </ul>
+      {canEdit && (
+        <div className="mt-2 flex gap-1">
+          <input
+            className="flex-1 rounded border px-2 py-1 text-xs"
+            placeholder="Auto 1"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <Button
+            variant="secondary"
+            className="!text-xs"
+            onClick={() => {
+              if (!label.trim() || !supabase) return;
+              void supabase
+                .from('event_vehicles')
+                .insert({ event_id: eventUuid, label: label.trim() })
+                .then(load);
+              setLabel('');
+            }}
+          >
+            +
+          </Button>
         </div>
-      </div>
-
-      <p className="mt-3 text-xs text-slate-500">
-        Nicht zugeordnet: <span className="font-semibold text-brand-red">AB</span>,{' '}
-        <span className="font-semibold text-brand-red">FS</span> (Vorschau)
-      </p>
-
-      <Button className="mt-4" disabled={!canEdit} variant={canEdit ? 'primary' : 'secondary'}>
-        Fahrgemeinschaften bearbeiten (bald)
-      </Button>
+      )}
     </section>
   );
 }

@@ -24,7 +24,12 @@ interface SpotModalProps {
   canAssign?: boolean;
   onAssignPhotographer?: (photographerId: string) => void;
   onUnassignPhotographer?: (assignmentId: string) => void;
+  comment?: string;
+  layer?: string;
+  eventType?: string | null;
   onKuerzelChange: (v: string) => void;
+  onCommentChange?: (v: string) => void;
+  onLayerChange?: (v: string) => void;
   onClose: () => void;
   onSave: (payload: {
     kuerzel: string;
@@ -46,7 +51,12 @@ export function SpotModal({
   canAssign = false,
   onAssignPhotographer,
   onUnassignPhotographer,
+  comment = '',
+  layer = '',
+  eventType,
   onKuerzelChange,
+  onCommentChange,
+  onLayerChange,
   onClose,
   onSave,
   onDelete,
@@ -184,6 +194,23 @@ export function SpotModal({
           onChange={(e) => onKuerzelChange(e.target.value.toUpperCase())}
           placeholder="Spot-Kürzel"
         />
+
+        <textarea
+          className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          rows={2}
+          placeholder="Kommentar für Fotograf (z. B. Objektiv, Perspektive)"
+          value={comment}
+          onChange={(e) => onCommentChange?.(e.target.value)}
+        />
+
+        {(eventType === 'obstacle' || eventType === 'highrocks') && (
+          <input
+            className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Station / Layer"
+            value={layer}
+            onChange={(e) => onLayerChange?.(e.target.value)}
+          />
+        )}
 
         <div className="mt-3">
           <p className="text-xs font-semibold text-navy">Fotografen am Spot</p>

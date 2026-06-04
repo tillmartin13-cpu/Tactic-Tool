@@ -91,32 +91,34 @@ export function EventMap({
           icon={buildSpotDivIcon(s.kuerzel)}
           draggable={!readOnly && !!onSpotDrag}
           zIndexOffset={500}
-          eventHandlers={{
-            click: (e) => {
-              L.DomEvent.stopPropagation(e);
-              onSpotClick?.(s.id);
-            },
-            dragend: (e) => {
-              const m = e.target;
-              const ll = m.getLatLng();
-              onSpotDrag?.(s.id, ll.lat, ll.lng);
-            },
-            dragover: (e) => {
-              if (!canDropPhotographer || !onPhotographerDrop) return;
-              const ev = e.originalEvent as DragEvent;
-              if (!ev.dataTransfer?.types.includes(PHOTOGRAPHER_DRAG_TYPE)) return;
-              ev.preventDefault();
-              ev.dataTransfer.dropEffect = 'copy';
-            },
-            drop: (e) => {
-              if (!canDropPhotographer || !onPhotographerDrop) return;
-              L.DomEvent.stopPropagation(e);
-              const ev = e.originalEvent as DragEvent;
-              ev.preventDefault();
-              const photographerId = ev.dataTransfer?.getData(PHOTOGRAPHER_DRAG_TYPE);
-              if (photographerId) onPhotographerDrop(s.id, photographerId);
-            },
-          }}
+          eventHandlers={
+            {
+              click: (e: L.LeafletMouseEvent) => {
+                L.DomEvent.stopPropagation(e);
+                onSpotClick?.(s.id);
+              },
+              dragend: (e: L.DragEndEvent) => {
+                const m = e.target;
+                const ll = m.getLatLng();
+                onSpotDrag?.(s.id, ll.lat, ll.lng);
+              },
+              dragover: (e: L.LeafletMouseEvent) => {
+                if (!canDropPhotographer || !onPhotographerDrop) return;
+                const ev = e.originalEvent as DragEvent;
+                if (!ev.dataTransfer?.types.includes(PHOTOGRAPHER_DRAG_TYPE)) return;
+                ev.preventDefault();
+                ev.dataTransfer.dropEffect = 'copy';
+              },
+              drop: (e: L.LeafletMouseEvent) => {
+                if (!canDropPhotographer || !onPhotographerDrop) return;
+                L.DomEvent.stopPropagation(e);
+                const ev = e.originalEvent as DragEvent;
+                ev.preventDefault();
+                const photographerId = ev.dataTransfer?.getData(PHOTOGRAPHER_DRAG_TYPE);
+                if (photographerId) onPhotographerDrop(s.id, photographerId);
+              },
+            } as L.LeafletEventHandlerFnMap
+          }
         />
       )),
     [spots, readOnly, onSpotDrag, onSpotClick],

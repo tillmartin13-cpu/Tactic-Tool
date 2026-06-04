@@ -32,6 +32,7 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <AppShell
+          layout="planning"
           title="Teamleader"
           subtitle="Tactic Tool — Event planen & SpotInfo"
           headerExtra={<AppHeader />}

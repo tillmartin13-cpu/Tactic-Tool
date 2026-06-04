@@ -4,12 +4,14 @@ import type { KMLSpot, Track } from './types';
 
 export async function parseKMZ(arrayBuffer: ArrayBuffer): Promise<string> {
   const zip = await JSZip.loadAsync(arrayBuffer);
-  let kmlFile: JSZip.JSZipObject | null = null;
-  zip.forEach((path, file) => {
-    if (!kmlFile && path.toLowerCase().endsWith('.kml')) kmlFile = file;
+  let kmlPath: string | null = null;
+  zip.forEach((path) => {
+    if (!kmlPath && path.toLowerCase().endsWith('.kml')) kmlPath = path;
   });
-  if (!kmlFile) throw new Error('No KML found inside KMZ');
-  return kmlFile.async('string');
+  if (!kmlPath) throw new Error('No KML found inside KMZ');
+  const file = zip.file(kmlPath);
+  if (!file) throw new Error('No KML found inside KMZ');
+  return file.async('string');
 }
 
 export async function parseKMZSpots(

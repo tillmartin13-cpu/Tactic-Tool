@@ -135,6 +135,8 @@ export async function loadEventWorkspace(eventUuid: string): Promise<{
     return {
       id: s.id,
       kuerzel: kuerzel || `S${idx + 1}`,
+      comment: s.comment,
+      layer: s.layer,
       lat: s.lat,
       lng: s.lng,
       kmResults: kmFromDb(s.km_results, tracks),
@@ -179,7 +181,14 @@ export async function deleteTrackDb(trackId: string): Promise<void> {
 
 export async function saveSpot(
   eventUuid: string,
-  spot: { kuerzel: string; lat: number; lng: number; kmResults: WorkspaceSpot['kmResults'] },
+  spot: {
+    kuerzel: string;
+    comment?: string | null;
+    layer?: string | null;
+    lat: number;
+    lng: number;
+    kmResults: WorkspaceSpot['kmResults'];
+  },
   existingId?: string,
 ): Promise<WorkspaceSpot> {
   const km_results = spot.kmResults.map((r) => ({
@@ -194,13 +203,16 @@ export async function saveSpot(
     lng: spot.lng,
     km_results,
     kuerzel: spot.kuerzel,
-    comment: null,
+    comment: spot.comment ?? null,
+    layer: spot.layer ?? null,
   };
 
   if (!supabase) {
     return {
       id: existingId ?? crypto.randomUUID(),
       kuerzel: spot.kuerzel,
+      comment: spot.comment ?? null,
+      layer: spot.layer ?? null,
       lat: spot.lat,
       lng: spot.lng,
       kmResults: spot.kmResults,
@@ -219,6 +231,8 @@ export async function saveSpot(
     return {
       id: data.id,
       kuerzel: spot.kuerzel,
+      comment: spot.comment ?? null,
+      layer: spot.layer ?? null,
       lat: data.lat,
       lng: data.lng,
       kmResults: spot.kmResults,
@@ -241,6 +255,8 @@ export async function saveSpot(
   return {
     id: data.id,
     kuerzel: spot.kuerzel,
+    comment: spot.comment ?? null,
+    layer: spot.layer ?? null,
     lat: data.lat,
     lng: data.lng,
     kmResults: spot.kmResults,

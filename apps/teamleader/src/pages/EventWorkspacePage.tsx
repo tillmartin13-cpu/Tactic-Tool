@@ -4,7 +4,13 @@ import { KMLPreviewModal, useToast, type KMLPreviewSpot } from '@sg/ui';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SpotModal } from '../components/SpotModal';
+import { CameraCheckPanel } from '../features/camera-check/CameraCheckPanel';
+import { CarpoolPanel } from '../features/carpool/CarpoolPanel';
 import { HistoricalPanel } from '../features/history/HistoricalPanel';
+import { LayersPanel } from '../features/layers/LayersPanel';
+import { EventSettingsPanel } from '../features/settings/EventSettingsPanel';
+import { SpotInfoPanel } from '../features/spotinfo/SpotInfoPanel';
+import { TeamCommsPanel } from '../features/team-comms/TeamCommsPanel';
 import {
   canAssignPhotographersForEvent,
   PhotographerPanel,
@@ -56,7 +62,12 @@ export function EventWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sportografId, setSportografId] = useState('');
+  const [eventName, setEventName] = useState<string | null>(null);
+  const [eventType, setEventType] = useState<string | null>(null);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [prevEventId, setPrevEventId] = useState<string | null>(null);
+  const [draftComment, setDraftComment] = useState('');
+  const [draftLayer, setDraftLayer] = useState('');
   const [phase, setPhase] = useState<EventPhase>('planning');
   const [tracks, setTracks] = useState<Track[]>([]);
   const [spots, setSpots] = useState<WorkspaceSpot[]>([]);
@@ -104,6 +115,9 @@ export function EventWorkspacePage() {
         listAllPhotographers(),
       ]);
       setSportografId(event.event_id);
+      setEventName(event.name);
+      setEventType(event.type);
+      setWhatsappUrl(event.whatsapp_group_invite_url ?? null);
       setPrevEventId(event.prev_event_id);
       setTracks(t);
       setSpots(attachAssignmentsToSpots(baseSpots, assignments));
@@ -128,6 +142,8 @@ export function EventWorkspacePage() {
     const m = rematchSpot(lat, lng, tracks);
     setEditId(null);
     setDraftKuerzel('');
+    setDraftComment('');
+    setDraftLayer('');
     setDraftLat(m.lat);
     setDraftLng(m.lng);
     setModalOpen(true);
@@ -136,6 +152,8 @@ export function EventWorkspacePage() {
   function openEditSpot(spot: WorkspaceSpot) {
     setEditId(spot.id);
     setDraftKuerzel(spot.kuerzel);
+    setDraftComment(spot.comment ?? '');
+    setDraftLayer(spot.layer ?? '');
     setDraftLat(spot.lat);
     setDraftLng(spot.lng);
     setModalOpen(true);
@@ -221,7 +239,11 @@ export function EventWorkspacePage() {
       toast('Bitte Kürzel eingeben');
       return;
     }
-    const saved = await saveSpot(eventUuid, payload, editId ?? undefined);
+    const saved = await saveSpot(
+      eventUuid,
+      { ...payload, comment: draftComment || null, layer: draftLayer || null },
+      editId ?? undefined,
+    );
     const prevAssign = editId ? spots.find((s) => s.id === editId)?.assignments ?? [] : [];
     const merged = { ...saved, assignments: prevAssign };
     if (editId) {
@@ -331,8 +353,8 @@ export function EventWorkspacePage() {
     : null;
 
   return (
-    <div className="flex h-[calc(100vh-120px)] flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="tl-workspace">
+      <div className="tl-toolbar flex flex-wrap items-center gap-2">
         <Link to="/" className="text-sm text-navy underline">
           ← Events
         </Link>
@@ -358,13 +380,13 @@ export function EventWorkspacePage() {
             Vorjahresgalerie
           </a>
         )}
-        <div className="ml-auto flex rounded-lg border border-slate-200 p-0.5">
+        <div className="ml-auto flex shrink-0 rounded-lg border border-slate-200 p-0.5">
           {(['planning', 'spotinfo'] as EventPhase[]).map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => setPhase(p)}
-              className={`rounded-md px-3 py-1 text-xs font-semibold ${
+              className={`min-h-9 rounded-md px-3 py-1.5 text-xs font-semibold sm:min-h-8 sm:py-1 ${
                 phase === p ? 'bg-navy text-white' : 'text-slate-600'
               }`}
             >
@@ -447,16 +469,18 @@ export function EventWorkspacePage() {
         </div>
       )}
 
-      {phase === 'spotinfo' && (
-        <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
-          SpotInfo: Ist-Positionen nach dem Event — Karte + Link-Eingabe wie in v1. PDF-Export
-          folgt.
-        </p>
+      {phase === 'spotinfo' && eventUuid && (
+        <SpotInfoPanel
+          eventUuid={eventUuid}
+          eventSportografId={sportografId}
+          eventName={eventName}
+          spots={spots}
+        />
       )}
 
-      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[200px_1fr_260px]">
+      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(180px,220px)_1fr_minmax(240px,300px)]">
         {phase === 'planning' && canEdit && (
-          <aside className="order-2 flex flex-col overflow-y-auto lg:order-1">
+          <aside className="tl-side-panel order-2 flex flex-col xl:order-1 xl:overflow-y-auto">
             <PhotographerPanel
               eventPhotographers={eventPhotographers}
               allPhotographers={allPhotographers}
@@ -467,8 +491,8 @@ export function EventWorkspacePage() {
           </aside>
         )}
 
-        <div className="order-1 flex min-h-[320px] flex-col gap-2 overflow-hidden lg:order-2">
-          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200">
+        <div className="order-1 flex min-h-[min(45dvh,28rem)] flex-col gap-2 overflow-hidden sm:min-h-[360px] xl:order-2 xl:min-h-0">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 shadow-sm">
             <Suspense fallback={<div className="flex h-full items-center justify-center">Karte…</div>}>
               <EventMap
                 tracks={tracks}
@@ -502,10 +526,10 @@ export function EventWorkspacePage() {
             </Suspense>
           )}
         </div>
-        <aside className="order-3 flex flex-col gap-3 overflow-y-auto">
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <aside className="tl-side-panel order-3 flex flex-col gap-3 xl:max-h-none xl:overflow-y-auto">
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
             <h3 className="text-sm font-semibold text-navy">Spots ({spots.length})</h3>
-            <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto text-sm">
+            <ul className="mt-2 max-h-40 space-y-2 overflow-y-auto text-sm xl:max-h-64">
               {spots.map((s) => (
                 <li key={s.id}>
                   <SpotDropTarget
@@ -536,6 +560,32 @@ export function EventWorkspacePage() {
               ))}
             </ul>
           </div>
+          {eventUuid && (
+            <EventSettingsPanel
+              eventUuid={eventUuid}
+              eventName={eventName}
+              whatsappUrl={whatsappUrl}
+              canEdit={canEdit}
+            />
+          )}
+          {eventUuid && <CameraCheckPanel eventUuid={eventUuid} canEdit={canEdit} />}
+          {eventUuid && profile && (
+            <TeamCommsPanel
+              eventUuid={eventUuid}
+              role={profile.role}
+              whatsappUrl={whatsappUrl}
+              canEdit={canEdit}
+            />
+          )}
+          {eventUuid && profile && <CarpoolPanel eventUuid={eventUuid} role={profile.role} />}
+          {eventUuid && (
+            <LayersPanel
+              eventUuid={eventUuid}
+              eventType={eventType}
+              canEdit={canEdit}
+              onLayerPick={(name) => setDraftLayer(name)}
+            />
+          )}
           <HistoricalPanel prevEventId={prevEventId} catalogYears={catalogYears} />
         </aside>
       </div>
@@ -555,7 +605,12 @@ export function EventWorkspacePage() {
             : undefined
         }
         onUnassignPhotographer={(id) => void handleUnassign(id)}
+        comment={draftComment}
+        layer={draftLayer}
+        eventType={eventType}
         onKuerzelChange={setDraftKuerzel}
+        onCommentChange={setDraftComment}
+        onLayerChange={setDraftLayer}
         onClose={() => setModalOpen(false)}
         onSave={(p) => void persistSpot(p)}
         onDelete={editId ? () => void removeSpot() : undefined}

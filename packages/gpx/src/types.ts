@@ -33,4 +33,5 @@ export interface KMLSpot {
   name: string;
   lat: number;
   lng: number;
+  kmResults?: KMResult[];
 }

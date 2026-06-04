@@ -1,41 +1,54 @@
-import { MapPlaceholder } from '@sg/map';
-import { AppShell, Button } from '@sg/ui';
-import { Link, Route, Routes } from 'react-router-dom';
+import { AppShell, ToastProvider } from '@sg/ui';
+import { Route, Routes } from 'react-router-dom';
+import { AuthProvider, useAuth } from './lib/auth';
+import { RequireAuth } from './components/RequireAuth';
+import { HomePage } from './pages/HomePage';
+import { EventPage } from './pages/EventPage';
+import { LoginPage } from './pages/LoginPage';
+import { SignUpPage } from './pages/SignUpPage';
 
-function HomePage() {
+function Header() {
+  const { session, profile, signOut, bypassAuth } = useAuth();
+  if (!session && !bypassAuth) return null;
   return (
-    <div className="space-y-6">
-      <section className="rounded-lg bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-navy">Meine Events</h1>
-        <p className="mt-2 text-slate-600">
-          Fotografen-Frontend — Spot, Kamera-Check und Spot-Report folgen als Nächstes.
-        </p>
-        <Button className="mt-4">Anmelden (bald)</Button>
-      </section>
-      <section className="h-64 overflow-hidden rounded-lg bg-white p-2 shadow-sm">
-        <MapPlaceholder label="Assigned spot" />
-      </section>
-    </div>
+    <button type="button" onClick={() => void signOut()} className="text-xs text-white/90 underline">
+      {profile?.name ?? 'Abmelden'}
+    </button>
   );
 }
 
 export default function App() {
   return (
-    <AppShell title="Photographer" subtitle="Your spots at Sportograf events">
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route
-          path="*"
-          element={
-            <p className="text-slate-600">
-              Seite nicht gefunden.{' '}
-              <Link className="text-navy underline" to="/">
-                Start
-              </Link>
-            </p>
-          }
-        />
-      </Routes>
-    </AppShell>
+    <AuthProvider>
+      <ToastProvider>
+        <AppShell
+          layout="field"
+          title="Fotograf"
+          subtitle="Deine Spots & SpotInfo"
+          headerExtra={<Header />}
+        >
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignUpPage />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <HomePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/events/:eventUuid"
+              element={
+                <RequireAuth>
+                  <EventPage />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </AppShell>
+      </ToastProvider>
+    </AuthProvider>
   );
 }

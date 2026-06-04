@@ -1,45 +1,82 @@
 import { canSendTeamBroadcast } from '@sg/auth';
 import type { UserRole } from '@sg/auth';
 import { Button } from '@sg/ui';
+import { useState } from 'react';
+import { updateEventMeta } from '../../lib/eventSettings';
+import { supabase } from '../../lib/supabase';
 
 interface TeamCommsPanelProps {
-  /** Current user role — until auth is wired, pass null to show disabled state. */
-  role?: UserRole | null;
+  eventUuid: string;
+  role: UserRole | null;
+  whatsappUrl: string | null;
+  canEdit: boolean;
 }
 
-/**
- * Stub for „Team informieren“ — see docs/features/team-communications.md
- */
-export function TeamCommsPanel({ role = null }: TeamCommsPanelProps) {
+export function TeamCommsPanel({ eventUuid, role, whatsappUrl, canEdit }: TeamCommsPanelProps) {
+  const [wa, setWa] = useState(whatsappUrl ?? '');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
   const allowed = role != null && canSendTeamBroadcast(role);
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-navy">Team informieren</h2>
-      <p className="mt-2 text-sm text-slate-600">
-        E-Mail an das Event-Team (Resend). <strong>Eine WhatsApp-Gruppe pro Event:</strong>{' '}
-        in WhatsApp anlegen, Einladungslink hier einfügen — keine Telefonnummern im Tool nötig.
-      </p>
-
-      <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
-        <li>WhatsApp-Gruppe erstellen (App oder später: Kurz-Hilfe im Tool)</li>
-        <li>Einladungslink speichern (ein Feld pro Event)</li>
-        <li>Optional: gleicher Link in der Team-E-Mail</li>
-      </ol>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button disabled={!allowed} title={allowed ? undefined : 'Nach Anmeldung verfügbar'}>
-          E-Mail ans Team senden (bald)
+    <section className="rounded-lg border border-slate-200 bg-white p-3">
+      <h3 className="text-sm font-semibold text-navy">Team informieren</h3>
+      <input
+        className="mt-2 w-full rounded border px-2 py-1 text-xs"
+        placeholder="WhatsApp Gruppen-Link"
+        value={wa}
+        disabled={!canEdit}
+        onChange={(e) => setWa(e.target.value)}
+      />
+      {canEdit && (
+        <Button
+          variant="secondary"
+          className="mt-1 w-full !text-xs"
+          onClick={() => void updateEventMeta(eventUuid, { whatsapp_group_invite_url: wa || null })}
+        >
+          WhatsApp-Link speichern
         </Button>
-        <Button variant="secondary" disabled>
-          WhatsApp-Link speichern (bald)
-        </Button>
-      </div>
-
-      {!allowed && (
-        <p className="mt-2 text-xs text-slate-500">
-          Verfügbar für Teamleiter, Office und Admin nach Login.
-        </p>
+      )}
+      {wa && (
+        <a href={wa} target="_blank" rel="noreferrer" className="mt-2 block text-xs text-navy underline">
+          Gruppe öffnen
+        </a>
+      )}
+      {allowed && (
+        <div className="mt-3 space-y-1">
+          <input
+            className="w-full rounded border px-2 py-1 text-xs"
+            placeholder="Betreff (E-Mail — Edge Function)"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+          <textarea
+            className="w-full rounded border px-2 py-1 text-xs"
+            rows={2}
+            placeholder="Nachricht"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <Button
+            variant="secondary"
+            className="w-full !text-xs"
+            disabled={!subject.trim()}
+            onClick={async () => {
+              if (!supabase) return;
+              await supabase.from('team_broadcasts').insert({
+                event_id: eventUuid,
+                channel: 'email',
+                subject: subject.trim(),
+                body: body.trim(),
+                sent_by: (await supabase.auth.getUser()).data.user?.id,
+              });
+              setSubject('');
+              setBody('');
+            }}
+          >
+            Broadcast protokollieren (E-Mail via Edge fn folgt)
+          </Button>
+        </div>
       )}
     </section>
   );

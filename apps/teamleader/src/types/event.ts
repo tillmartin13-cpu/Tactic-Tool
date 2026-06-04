@@ -12,6 +12,7 @@ export interface DbEvent {
   date: string | null;
   type: string | null;
   prev_event_id: string | null;
+  whatsapp_group_invite_url?: string | null;
   created_at: string;
 }
 
@@ -62,6 +63,8 @@ export interface WorkspaceSpot {
   id: string;
   /** Spot / position label on the map */
   kuerzel: string;
+  comment: string | null;
+  layer: string | null;
   lat: number;
   lng: number;
   kmResults: KMResult[];
