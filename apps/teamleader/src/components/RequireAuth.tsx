@@ -1,3 +1,4 @@
+import { roleLabel } from '@sg/auth';
 import { Navigate, useLocation } from 'react-router-dom';
 import { canAccessTeamleaderApp, useAuth } from '../lib/auth';
 
@@ -18,7 +19,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!canAccessTeamleaderApp(profile, false)) {
     return (
       <p className="text-brand-red">
-        Kein Zugriff (Rolle: {profile?.role ?? 'unbekannt'}). Nur Teamleader/Admin/Office.
+        Kein Zugriff (Rolle: {profile?.role ? roleLabel(profile.role) : 'unbekannt'}). Nur
+        Admin, Team Leader oder Office.
       </p>
     );
   }

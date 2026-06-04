@@ -1,3 +1,4 @@
+import { roleLabel } from '@sg/auth';
 import { AppShell, ToastProvider } from '@sg/ui';
 import { Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './components/RequireAuth';
@@ -15,7 +16,7 @@ function AppHeader() {
       onClick={() => void signOut()}
       className="text-xs text-white/80 underline hover:text-white"
     >
-      {profile?.name ?? 'Abmelden'}
+      {profile ? `${profile.name} (${roleLabel(profile.role)})` : 'Abmelden'}
     </button>
   );
 }

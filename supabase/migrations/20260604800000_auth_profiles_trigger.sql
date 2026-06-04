@@ -9,7 +9,10 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'role', 'teamleader')
+    case
+      when lower(trim(new.email)) = 'till@sportograf.com' then 'admin'
+      else coalesce(new.raw_user_meta_data->>'role', 'teamleader')
+    end
   );
   return new;
 end;

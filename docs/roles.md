@@ -1,11 +1,13 @@
 # User roles
 
-| Role | Who | App | Event access |
-|------|-----|-----|----------------|
-| `admin` | Sportograf admins | Teamleader | All events |
-| `teamleader` | Freelance TLs | Teamleader | Events in `event_teamleaders` |
-| `office` | Internal Sportograf staff | Teamleader | Events in `event_office` |
-| `photographer` | Freelance photographers | Photographer | Spots via `spot_assignments` |
+| DB role | Label | Who | App | Event access |
+|---------|-------|-----|-----|----------------|
+| `admin` | **Admin** | Sportograf admins (`till@sportograf.com` = primary admin) | Teamleader | All events |
+| `teamleader` | **Team Leader** | Freelance TLs | Teamleader | Events in `event_teamleaders` |
+| `office` | **Office** | Internal Sportograf staff | Teamleader | Events in `event_office` |
+| `photographer` | **Photographer** | Freelance photographers | Photographer | Spots via `spot_assignments` |
+
+Setup: [auth-setup.md](./auth-setup.md)
 
 Office users share the **Teamleader** frontend with TLs. After login, `profiles.role === 'office'` gets read-oriented UI (map, spots, KM, comments, assignments) without destructive actions unless we extend permissions later.
 

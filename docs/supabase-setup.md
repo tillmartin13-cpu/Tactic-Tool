@@ -19,6 +19,8 @@ VITE_SUPABASE_URL=https://kzeieqcxzyynfukgmbqv.supabase.co
 VITE_SUPABASE_ANON_KEY=…
 ```
 
-## Auth (später)
+## Auth
 
-Dashboard → Authentication → Email aktivieren.
+1. Dashboard → **Authentication** → Email aktivieren.
+2. Rollen & Admin: siehe **[auth-setup.md](./auth-setup.md)** (`till@sportograf.com` → Admin).
+3. SQL: `20260604800000_auth_profiles_trigger.sql` und `20260604900000_roles_and_admin_till.sql`.

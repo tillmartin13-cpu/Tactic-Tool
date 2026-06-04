@@ -1,12 +1,25 @@
 /** App-facing roles stored in profiles.role (Supabase). */
 export type UserRole = 'admin' | 'teamleader' | 'office' | 'photographer';
 
+/** UI labels: Admin, Office, Team Leader, Photographer */
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Admin',
+  office: 'Office',
+  teamleader: 'Team Leader',
+  photographer: 'Photographer',
+};
+
 export const USER_ROLES: readonly UserRole[] = [
   'admin',
   'teamleader',
   'office',
   'photographer',
 ] as const;
+
+export function roleLabel(role: UserRole | string): string {
+  if (isUserRole(role)) return ROLE_LABELS[role];
+  return role;
+}
 
 /** Roles that sign in to the Teamleader web app (planning / support). */
 export const TEAMLEADER_APP_ROLES: readonly UserRole[] = [
