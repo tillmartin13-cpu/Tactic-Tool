@@ -1,10 +1,28 @@
 import { rematchSpot, type TileLayerId } from '@sg/map';
 import { parseKML, parseKMZ, trackColor, type Track } from '@sg/gpx';
 import { KMLPreviewModal, useToast, type KMLPreviewSpot } from '@sg/ui';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SpotModal } from '../components/SpotModal';
 import { HistoricalPanel } from '../features/history/HistoricalPanel';
+import {
+  canAssignPhotographers,
+  PhotographerPanel,
+} from '../features/photographers/PhotographerPanel';
+import { SpotDropTarget } from '../features/photographers/SpotDropTarget';
+import {
+  addEventPhotographer,
+  assignPhotographerToSpot,
+  attachAssignmentsToSpots,
+  listAllPhotographers,
+  listEventPhotographers,
+  loadSpotAssignmentsForEvent,
+  photographerDisplayKuerzel,
+  removeEventPhotographer,
+  spotPinLabel,
+  unassignPhotographerFromSpot,
+} from '../lib/photographers';
+import { useAuth } from '../lib/auth';
 import {
   deleteSpotDb,
   deleteTrackDb,
@@ -13,7 +31,7 @@ import {
   saveSpot,
   uploadTrack,
 } from '../lib/events';
-import type { EventPhase, EventIntent, WorkspaceSpot } from '../types/event';
+import type { EventPhase, EventIntent, PhotographerProfile, WorkspaceSpot } from '../types/event';
 
 const EventMap = lazy(() =>
   import('@sg/map').then((m) => ({ default: m.EventMap })),
@@ -25,6 +43,8 @@ const ElevationChart = lazy(() =>
 export function EventWorkspacePage() {
   const { eventUuid } = useParams<{ eventUuid: string }>();
   const { toast } = useToast();
+  const { profile, bypassAuth } = useAuth();
+  const canAssign = bypassAuth || canAssignPhotographers(profile?.role);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sportografId, setSportografId] = useState('');
@@ -49,16 +69,38 @@ export function EventWorkspacePage() {
   const [kmlPreview, setKmlPreview] = useState<KMLPreviewSpot[]>([]);
   const [kmlSelected, setKmlSelected] = useState<Set<number>>(new Set());
   const [kmlOpen, setKmlOpen] = useState(false);
+  const [eventPhotographers, setEventPhotographers] = useState<PhotographerProfile[]>([]);
+  const [allPhotographers, setAllPhotographers] = useState<PhotographerProfile[]>([]);
+
+  const mapSpots = useMemo(
+    () =>
+      spots.map((s) => ({
+        id: s.id,
+        kuerzel: spotPinLabel(s),
+        lat: s.lat,
+        lng: s.lng,
+      })),
+    [spots],
+  );
+
+  const editSpot = editId ? spots.find((s) => s.id === editId) : null;
 
   const load = useCallback(async () => {
     if (!eventUuid) return;
     setLoading(true);
     try {
-      const { event, tracks: t, spots: s } = await loadEventWorkspace(eventUuid);
+      const { event, tracks: t, spots: baseSpots } = await loadEventWorkspace(eventUuid);
+      const [assignments, evPh, allPh] = await Promise.all([
+        loadSpotAssignmentsForEvent(eventUuid),
+        listEventPhotographers(eventUuid),
+        listAllPhotographers(),
+      ]);
       setSportografId(event.event_id);
       setPrevEventId(event.prev_event_id);
       setTracks(t);
-      setSpots(s);
+      setSpots(attachAssignmentsToSpots(baseSpots, assignments));
+      setEventPhotographers(evPh);
+      setAllPhotographers(allPh);
       const stored = sessionStorage.getItem(`tactic_intent_${eventUuid}`) as EventIntent | null;
       const i = stored === 'spotinfo_focus' ? 'spotinfo_focus' : 'full';
       setPhase(i === 'spotinfo_focus' && !t.length && !s.length ? 'spotinfo' : 'planning');
@@ -172,13 +214,65 @@ export function EventWorkspacePage() {
       return;
     }
     const saved = await saveSpot(eventUuid, payload, editId ?? undefined);
+    const prevAssign = editId ? spots.find((s) => s.id === editId)?.assignments ?? [] : [];
+    const merged = { ...saved, assignments: prevAssign };
     if (editId) {
-      setSpots((prev) => prev.map((s) => (s.id === editId ? saved : s)));
+      setSpots((prev) => prev.map((s) => (s.id === editId ? merged : s)));
     } else {
-      setSpots((prev) => [...prev, saved]);
+      setSpots((prev) => [...prev, merged]);
     }
     setModalOpen(false);
     toast(`Spot „${payload.kuerzel}" gespeichert`);
+  }
+
+  async function handleAssignPhotographer(spotId: string, photographerId: string) {
+    const row = await assignPhotographerToSpot(spotId, photographerId);
+    const label = photographerDisplayKuerzel(row.photographer);
+    setSpots((prev) =>
+      prev.map((s) => {
+        if (s.id !== spotId) return s;
+        if (s.assignments.some((a) => a.photographerId === photographerId)) return s;
+        return {
+          ...s,
+          assignments: [
+            ...s.assignments,
+            {
+              assignmentId: row.id,
+              photographerId: row.photographerId,
+              name: row.photographer.name,
+              kuerzel: row.photographer.kuerzel,
+            },
+          ],
+        };
+      }),
+    );
+    toast(`${label} zugewiesen`);
+  }
+
+  async function handleUnassign(assignmentId: string) {
+    await unassignPhotographerFromSpot(assignmentId);
+    setSpots((prev) =>
+      prev.map((s) => ({
+        ...s,
+        assignments: s.assignments.filter((a) => a.assignmentId !== assignmentId),
+      })),
+    );
+    toast('Zuweisung entfernt');
+  }
+
+  async function handleAddEventPhotographer(photographerId: string) {
+    if (!eventUuid) return;
+    await addEventPhotographer(eventUuid, photographerId);
+    const p = allPhotographers.find((x) => x.id === photographerId);
+    if (p) setEventPhotographers((prev) => [...prev, p].sort((a, b) => a.name.localeCompare(b.name)));
+    toast('Fotograf zum Event hinzugefügt');
+  }
+
+  async function handleRemoveEventPhotographer(photographerId: string) {
+    if (!eventUuid) return;
+    await removeEventPhotographer(eventUuid, photographerId);
+    setEventPhotographers((prev) => prev.filter((p) => p.id !== photographerId));
+    toast('Fotograf vom Event entfernt');
   }
 
   async function removeSpot() {
@@ -203,7 +297,9 @@ export function EventWorkspacePage() {
       },
       id,
     );
-    setSpots((prev) => prev.map((s) => (s.id === id ? saved : s)));
+    setSpots((prev) =>
+      prev.map((s) => (s.id === id ? { ...saved, assignments: s.assignments } : s)),
+    );
     toast(`Spot „${spot.kuerzel}" aktualisiert`);
   }
 
@@ -333,17 +429,33 @@ export function EventWorkspacePage() {
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1fr_280px]">
-        <div className="flex min-h-[320px] flex-col gap-2 overflow-hidden">
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[200px_1fr_260px]">
+        {phase === 'planning' && (
+          <aside className="order-2 flex flex-col overflow-y-auto lg:order-1">
+            <PhotographerPanel
+              eventPhotographers={eventPhotographers}
+              allPhotographers={allPhotographers}
+              canEdit={canAssign}
+              onAddToEvent={(id) => void handleAddEventPhotographer(id)}
+              onRemoveFromEvent={(id) => void handleRemoveEventPhotographer(id)}
+            />
+          </aside>
+        )}
+
+        <div className="order-1 flex min-h-[320px] flex-col gap-2 overflow-hidden lg:order-2">
           <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200">
             <Suspense fallback={<div className="flex h-full items-center justify-center">Karte…</div>}>
               <EventMap
                 tracks={tracks}
-                spots={spots}
+                spots={mapSpots}
                 tileLayer={tile}
                 onMapClick={openNewSpot}
                 onSpotClick={openEditById}
                 onSpotDrag={phase === 'planning' ? onSpotDrag : undefined}
+                canDropPhotographer={phase === 'planning' && canAssign}
+                onPhotographerDrop={(spotId, photographerId) =>
+                  void handleAssignPhotographer(spotId, photographerId)
+                }
                 scrubPoint={scrubPoint}
               />
             </Suspense>
@@ -365,23 +477,36 @@ export function EventWorkspacePage() {
             </Suspense>
           )}
         </div>
-        <aside className="flex flex-col gap-3 overflow-y-auto">
+        <aside className="order-3 flex flex-col gap-3 overflow-y-auto">
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             <h3 className="text-sm font-semibold text-navy">Spots ({spots.length})</h3>
             <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto text-sm">
               {spots.map((s) => (
                 <li key={s.id}>
-                  <button
-                    type="button"
-                    className="w-full text-left font-bold text-brand-red"
-                    onClick={() => openEditSpot(s)}
+                  <SpotDropTarget
+                    spotId={s.id}
+                    canDrop={phase === 'planning' && canAssign}
+                    onDropPhotographer={(spotId, photographerId) =>
+                      void handleAssignPhotographer(spotId, photographerId)
+                    }
                   >
-                    {s.kuerzel}
-                  </button>
-                  <p className="text-xs text-slate-500">
-                    {s.kmResults.map((k) => `${k.trackName} ${k.km.toFixed(1)}km`).join(' · ') ||
-                      'Kein GPX'}
-                  </p>
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => openEditSpot(s)}
+                    >
+                      <span className="font-bold text-brand-red">{spotPinLabel(s)}</span>
+                      {s.assignments.length > 0 && spotPinLabel(s) !== s.kuerzel && (
+                        <span className="ml-1 text-xs font-normal text-slate-500">
+                          ({s.kuerzel})
+                        </span>
+                      )}
+                    </button>
+                    <p className="text-xs text-slate-500">
+                      {s.kmResults.map((k) => `${k.trackName} ${k.km.toFixed(1)}km`).join(' · ') ||
+                        'Kein GPX'}
+                    </p>
+                  </SpotDropTarget>
                 </li>
               ))}
             </ul>
@@ -396,6 +521,15 @@ export function EventWorkspacePage() {
         lat={draftLat}
         lng={draftLng}
         tracks={tracks}
+        assignments={editSpot?.assignments}
+        eventPhotographers={eventPhotographers}
+        canAssign={canAssign && !!editId}
+        onAssignPhotographer={
+          editId
+            ? (photographerId) => void handleAssignPhotographer(editId, photographerId)
+            : undefined
+        }
+        onUnassignPhotographer={(id) => void handleUnassign(id)}
         onKuerzelChange={setDraftKuerzel}
         onClose={() => setModalOpen(false)}
         onSave={(p) => void persistSpot(p)}

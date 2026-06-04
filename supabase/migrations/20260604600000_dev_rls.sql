@@ -25,7 +25,7 @@ declare
   t text;
 begin
   foreach t in array array[
-    'profiles','events','event_teamleaders','event_office','tracks','spots',
+    'profiles','events','event_teamleaders','event_office','event_photographers','tracks','spots',
     'spot_assignments','spot_images','tactic_pdfs','camera_checks','spot_reports',
     'team_broadcasts','event_vehicles','vehicle_passengers','event_archives',
     'archive_tracks','archive_spots','infofile_catalog'

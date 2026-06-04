@@ -38,12 +38,34 @@ export interface DbSpot {
   sort_order: number;
 }
 
+export interface PhotographerProfile {
+  id: string;
+  name: string;
+  kuerzel: string | null;
+}
+
+export interface SpotAssignmentView {
+  assignmentId: string;
+  photographerId: string;
+  name: string;
+  kuerzel: string | null;
+}
+
+export interface SpotAssignmentRow {
+  id: string;
+  spotId: string;
+  photographerId: string;
+  photographer: PhotographerProfile;
+}
+
 export interface WorkspaceSpot {
   id: string;
+  /** Spot / position label on the map */
   kuerzel: string;
   lat: number;
   lng: number;
   kmResults: KMResult[];
+  assignments: SpotAssignmentView[];
 }
 
 export interface EventWorkspaceState {

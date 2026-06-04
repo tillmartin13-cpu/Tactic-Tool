@@ -1,4 +1,7 @@
 import { kmResultsForPoint, snapToTrack, type Track } from '@sg/gpx';
+
+/** MIME type for photographer drag & drop (teamleader app). */
+export const PHOTOGRAPHER_DRAG_TYPE = 'application/x-sg-photographer-id';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useMemo } from 'react';
@@ -59,6 +62,8 @@ interface EventMapProps {
   onMapClick?: (lat: number, lng: number) => void;
   onSpotClick?: (id: string) => void;
   onSpotDrag?: (id: string, lat: number, lng: number) => void;
+  onPhotographerDrop?: (spotId: string, photographerId: string) => void;
+  canDropPhotographer?: boolean;
   scrubPoint?: { lat: number; lng: number; color?: string } | null;
   readOnly?: boolean;
 }
@@ -70,6 +75,8 @@ export function EventMap({
   onMapClick,
   onSpotClick,
   onSpotDrag,
+  onPhotographerDrop,
+  canDropPhotographer = false,
   scrubPoint,
   readOnly = false,
 }: EventMapProps) {
@@ -93,6 +100,21 @@ export function EventMap({
               const m = e.target;
               const ll = m.getLatLng();
               onSpotDrag?.(s.id, ll.lat, ll.lng);
+            },
+            dragover: (e) => {
+              if (!canDropPhotographer || !onPhotographerDrop) return;
+              const ev = e.originalEvent as DragEvent;
+              if (!ev.dataTransfer?.types.includes(PHOTOGRAPHER_DRAG_TYPE)) return;
+              ev.preventDefault();
+              ev.dataTransfer.dropEffect = 'copy';
+            },
+            drop: (e) => {
+              if (!canDropPhotographer || !onPhotographerDrop) return;
+              L.DomEvent.stopPropagation(e);
+              const ev = e.originalEvent as DragEvent;
+              ev.preventDefault();
+              const photographerId = ev.dataTransfer?.getData(PHOTOGRAPHER_DRAG_TYPE);
+              if (photographerId) onPhotographerDrop(s.id, photographerId);
             },
           }}
         />

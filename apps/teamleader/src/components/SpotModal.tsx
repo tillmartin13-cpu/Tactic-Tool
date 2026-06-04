@@ -10,6 +10,8 @@ import {
 } from '@sg/gpx';
 import { AmbiguitySelector, Button } from '@sg/ui';
 import { useEffect, useMemo, useState } from 'react';
+import type { PhotographerProfile, SpotAssignmentView } from '../types/event';
+import { photographerDisplayKuerzel } from '../lib/photographers';
 
 interface SpotModalProps {
   open: boolean;
@@ -17,6 +19,11 @@ interface SpotModalProps {
   lat: number;
   lng: number;
   tracks: Track[];
+  assignments?: SpotAssignmentView[];
+  eventPhotographers?: PhotographerProfile[];
+  canAssign?: boolean;
+  onAssignPhotographer?: (photographerId: string) => void;
+  onUnassignPhotographer?: (assignmentId: string) => void;
   onKuerzelChange: (v: string) => void;
   onClose: () => void;
   onSave: (payload: {
@@ -34,6 +41,11 @@ export function SpotModal({
   lat: propLat,
   lng: propLng,
   tracks,
+  assignments = [],
+  eventPhotographers = [],
+  canAssign = false,
+  onAssignPhotographer,
+  onUnassignPhotographer,
   onKuerzelChange,
   onClose,
   onSave,
@@ -170,8 +182,57 @@ export function SpotModal({
           className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-bold uppercase"
           value={kuerzel}
           onChange={(e) => onKuerzelChange(e.target.value.toUpperCase())}
-          placeholder="Kürzel"
+          placeholder="Spot-Kürzel"
         />
+
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-navy">Fotografen am Spot</p>
+          {assignments.length > 0 ? (
+            <ul className="mt-1 flex flex-wrap gap-1">
+              {assignments.map((a) => (
+                <li
+                  key={a.assignmentId}
+                  className="inline-flex items-center gap-1 rounded-md bg-brand-red/10 px-2 py-0.5 text-xs font-bold text-brand-red"
+                >
+                  {a.kuerzel?.trim() || a.name}
+                  {canAssign && onUnassignPhotographer && (
+                    <button
+                      type="button"
+                      className="text-brand-red/60 hover:text-brand-red"
+                      onClick={() => onUnassignPhotographer(a.assignmentId)}
+                    >
+                      ×
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs text-slate-500">Noch keiner zugewiesen.</p>
+          )}
+          {canAssign && onAssignPhotographer && eventPhotographers.length > 0 && (
+            <select
+              className="mt-2 w-full rounded-md border border-slate-300 text-sm"
+              defaultValue=""
+              onChange={(e) => {
+                const id = e.target.value;
+                if (id) {
+                  onAssignPhotographer(id);
+                  e.target.value = '';
+                }
+              }}
+            >
+              <option value="">+ Fotograf zuweisen…</option>
+              {eventPhotographers
+                .filter((p) => !assignments.some((a) => a.photographerId === p.id))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {photographerDisplayKuerzel(p)} — {p.name}
+                  </option>
+                ))}
+            </select>
+          )}
+        </div>
 
         <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2">
           {!tracks.length ? (

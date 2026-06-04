@@ -101,6 +101,7 @@ export async function loadEventWorkspace(eventUuid: string): Promise<{
       lat: s.lat,
       lng: s.lng,
       kmResults: kmFromDb(s.km_results, tracks),
+      assignments: [],
     };
   });
 
@@ -166,6 +167,7 @@ export async function saveSpot(
       lat: spot.lat,
       lng: spot.lng,
       kmResults: spot.kmResults,
+      assignments: [],
     };
   }
 
@@ -183,6 +185,7 @@ export async function saveSpot(
       lat: data.lat,
       lng: data.lng,
       kmResults: spot.kmResults,
+      assignments: [],
     };
   }
 
@@ -204,6 +207,7 @@ export async function saveSpot(
     lat: data.lat,
     lng: data.lng,
     kmResults: spot.kmResults,
+    assignments: [],
   };
 }
 

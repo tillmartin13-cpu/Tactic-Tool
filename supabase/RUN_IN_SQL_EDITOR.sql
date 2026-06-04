@@ -35,6 +35,13 @@ create table event_office (
   primary key (event_id, user_id)
 );
 
+create table event_photographers (
+  event_id uuid references events on delete cascade,
+  photographer_id uuid references profiles on delete cascade,
+  created_at timestamptz default now(),
+  primary key (event_id, photographer_id)
+);
+
 create table tracks (
   id uuid primary key default gen_random_uuid(),
   event_id uuid references events on delete cascade,
