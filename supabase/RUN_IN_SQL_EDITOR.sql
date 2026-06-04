@@ -50,6 +50,7 @@ create table spots (
   lat double precision not null,
   lng double precision not null,
   km_results jsonb,
+  kuerzel text,
   comment text,
   layer text,
   sort_order integer default 0,

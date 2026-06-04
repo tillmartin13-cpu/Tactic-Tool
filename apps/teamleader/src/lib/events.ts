@@ -89,15 +89,20 @@ export async function loadEventWorkspace(eventUuid: string): Promise<{
     .order('sort_order');
   if (e2) throw e2;
 
-  const spots: WorkspaceSpot[] = (spotRows as DbSpot[]).map((s, idx) => ({
-    id: s.id,
-    kuerzel: s.comment?.startsWith('kuerzel:')
-      ? s.comment.replace(/^kuerzel:/, '').trim()
-      : `S${idx + 1}`,
-    lat: s.lat,
-    lng: s.lng,
-    kmResults: kmFromDb(s.km_results, tracks),
-  }));
+  const spots: WorkspaceSpot[] = (spotRows as DbSpot[]).map((s, idx) => {
+    const row = s as DbSpot & { kuerzel?: string | null };
+    let kuerzel = row.kuerzel?.trim();
+    if (!kuerzel && s.comment?.startsWith('kuerzel:')) {
+      kuerzel = s.comment.replace(/^kuerzel:/, '').trim();
+    }
+    return {
+      id: s.id,
+      kuerzel: kuerzel || `S${idx + 1}`,
+      lat: s.lat,
+      lng: s.lng,
+      kmResults: kmFromDb(s.km_results, tracks),
+    };
+  });
 
   return { event, tracks, spots };
 }
@@ -145,12 +150,13 @@ export async function saveSpot(
     dist: r.dist,
   }));
 
-  const row = {
+  const row: Record<string, unknown> = {
     event_id: eventUuid,
     lat: spot.lat,
     lng: spot.lng,
     km_results,
-    comment: `kuerzel:${spot.kuerzel}`,
+    kuerzel: spot.kuerzel,
+    comment: null,
   };
 
   if (!supabase) {
@@ -199,6 +205,12 @@ export async function saveSpot(
     lng: data.lng,
     kmResults: spot.kmResults,
   };
+}
+
+export async function deleteEvent(eventUuid: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('events').delete().eq('id', eventUuid);
+  if (error) throw error;
 }
 
 export async function deleteSpotDb(spotId: string): Promise<void> {

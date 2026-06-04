@@ -9,6 +9,7 @@ export type {
 export { TRACK_COLORS, trackColor } from './constants';
 export { haversine } from './haversine';
 export { nearestKm, snapToTrack, kmResultsForPoint } from './nearest';
+export { buildKmResults } from './buildKmResults';
 export { findAmbiguous } from './ambiguous';
 export { parseGPX, trackToGeojson, geojsonToTrack } from './parseGPX';
 export { extractCoords, isShortUrl } from './extractCoords';

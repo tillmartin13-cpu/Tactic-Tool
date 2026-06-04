@@ -12,7 +12,9 @@
     "lint": "echo ok"
   },
   "dependencies": {
-    "@sg/gpx": "*"
+    "@sg/gpx": "*",
+    "chart.js": "^4.4.9",
+    "react-chartjs-2": "^5.3.0"
   },
   "peerDependencies": {
     "leaflet": "^1.9.4",

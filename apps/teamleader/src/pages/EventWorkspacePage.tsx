@@ -1,6 +1,6 @@
 import { rematchSpot, type TileLayerId } from '@sg/map';
-import { parseKML, parseKMZSpots } from '@sg/gpx';
-import { Button } from '@sg/ui';
+import { parseKML, parseKMZ, trackColor, type Track } from '@sg/gpx';
+import { KMLPreviewModal, useToast, type KMLPreviewSpot } from '@sg/ui';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SpotModal } from '../components/SpotModal';
@@ -8,36 +8,47 @@ import { HistoricalPanel } from '../features/history/HistoricalPanel';
 import {
   deleteSpotDb,
   deleteTrackDb,
+  listCatalogYears,
   loadEventWorkspace,
   saveSpot,
   uploadTrack,
 } from '../lib/events';
 import type { EventPhase, EventIntent, WorkspaceSpot } from '../types/event';
-import type { Track } from '@sg/gpx';
 
 const EventMap = lazy(() =>
   import('@sg/map').then((m) => ({ default: m.EventMap })),
 );
+const ElevationChart = lazy(() =>
+  import('@sg/map').then((m) => ({ default: m.ElevationChart })),
+);
 
 export function EventWorkspacePage() {
   const { eventUuid } = useParams<{ eventUuid: string }>();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sportografId, setSportografId] = useState('');
   const [prevEventId, setPrevEventId] = useState<string | null>(null);
-  const [intent, setIntent] = useState<EventIntent>('full');
   const [phase, setPhase] = useState<EventPhase>('planning');
   const [tracks, setTracks] = useState<Track[]>([]);
   const [spots, setSpots] = useState<WorkspaceSpot[]>([]);
   const [tile, setTile] = useState<TileLayerId>('osm');
   const [catalogYears, setCatalogYears] = useState<number[]>([]);
+  const [scrubPoint, setScrubPoint] = useState<{
+    lat: number;
+    lng: number;
+    color?: string;
+  } | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [draftKuerzel, setDraftKuerzel] = useState('');
   const [draftLat, setDraftLat] = useState(0);
   const [draftLng, setDraftLng] = useState(0);
-  const [draftKm, setDraftKm] = useState<WorkspaceSpot['kmResults']>([]);
+
+  const [kmlPreview, setKmlPreview] = useState<KMLPreviewSpot[]>([]);
+  const [kmlSelected, setKmlSelected] = useState<Set<number>>(new Set());
+  const [kmlOpen, setKmlOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!eventUuid) return;
@@ -50,10 +61,8 @@ export function EventWorkspacePage() {
       setSpots(s);
       const stored = sessionStorage.getItem(`tactic_intent_${eventUuid}`) as EventIntent | null;
       const i = stored === 'spotinfo_focus' ? 'spotinfo_focus' : 'full';
-      setIntent(i);
       setPhase(i === 'spotinfo_focus' && !t.length && !s.length ? 'spotinfo' : 'planning');
-      const { listCatalogYears: loadYears } = await import('../lib/events');
-      setCatalogYears(await loadYears());
+      setCatalogYears(await listCatalogYears());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Load failed');
     } finally {
@@ -71,7 +80,6 @@ export function EventWorkspacePage() {
     setDraftKuerzel('');
     setDraftLat(m.lat);
     setDraftLng(m.lng);
-    setDraftKm(m.kmResults);
     setModalOpen(true);
   }
 
@@ -80,49 +88,97 @@ export function EventWorkspacePage() {
     setDraftKuerzel(spot.kuerzel);
     setDraftLat(spot.lat);
     setDraftLng(spot.lng);
-    setDraftKm(spot.kmResults);
     setModalOpen(true);
+  }
+
+  function openEditById(id: string) {
+    const s = spots.find((x) => x.id === id);
+    if (s) openEditSpot(s);
   }
 
   async function handleGpx(files: FileList | null) {
     if (!files?.length || !eventUuid) return;
     for (let i = 0; i < files.length; i++) {
-      const t = await uploadTrack(eventUuid, files[i], tracks.length + i);
-      setTracks((prev) => [...prev, t]);
+      await uploadTrack(eventUuid, files[i], tracks.length + i);
     }
-    await load();
+    toast('GPX geladen');
+    const ws = await loadEventWorkspace(eventUuid);
+    setTracks(ws.tracks);
+    setSpots(ws.spots);
+    if (ws.spots.length) {
+      for (const s of ws.spots) {
+        const m = rematchSpot(s.lat, s.lng, ws.tracks);
+        await saveSpot(
+          eventUuid,
+          { kuerzel: s.kuerzel, lat: m.lat, lng: m.lng, kmResults: m.kmResults },
+          s.id,
+        );
+      }
+      await load();
+      toast('Spots an GPX angepasst');
+    }
   }
 
-  async function handleKml(file: File) {
+  async function handleKmlFile(file: File) {
+    let rawSpots: KMLPreviewSpot[] = [];
+    if (file.name.toLowerCase().endsWith('.kmz')) {
+      const kml = await parseKMZ(await file.arrayBuffer());
+      rawSpots = parseKML(kml, tracks).map((s) => ({
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+      }));
+    } else {
+      rawSpots = parseKML(await file.text(), tracks).map((s) => ({
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+      }));
+    }
+    if (!rawSpots.length) {
+      toast('Keine Placemarks in der Datei');
+      return;
+    }
+    setKmlPreview(rawSpots);
+    setKmlSelected(new Set(rawSpots.map((_, i) => i)));
+    setKmlOpen(true);
+  }
+
+  async function confirmKmlImport() {
     if (!eventUuid) return;
-    const spotsFromKml =
-      file.name.toLowerCase().endsWith('.kmz')
-        ? await parseKMZSpots(await file.arrayBuffer(), tracks)
-        : parseKML(await file.text(), tracks);
-    for (const k of spotsFromKml) {
+    const picked = kmlPreview.filter((_, i) => kmlSelected.has(i));
+    for (const k of picked) {
+      const m = rematchSpot(k.lat, k.lng, tracks);
       const saved = await saveSpot(eventUuid, {
         kuerzel: k.name,
-        lat: k.lat,
-        lng: k.lng,
-        kmResults: k.kmResults ?? [],
+        lat: m.lat,
+        lng: m.lng,
+        kmResults: m.kmResults,
       });
       setSpots((prev) => [...prev, saved]);
     }
+    setKmlOpen(false);
+    toast(`${picked.length} Spots importiert`);
   }
 
-  async function persistSpot() {
-    if (!eventUuid || !draftKuerzel.trim()) return;
-    const saved = await saveSpot(
-      eventUuid,
-      { kuerzel: draftKuerzel.trim(), lat: draftLat, lng: draftLng, kmResults: draftKm },
-      editId ?? undefined,
-    );
+  async function persistSpot(payload: {
+    kuerzel: string;
+    lat: number;
+    lng: number;
+    kmResults: WorkspaceSpot['kmResults'];
+  }) {
+    if (!eventUuid || !payload.kuerzel.trim()) {
+      toast('Bitte Kürzel eingeben');
+      return;
+    }
+    const saved = await saveSpot(eventUuid, payload, editId ?? undefined);
     if (editId) {
       setSpots((prev) => prev.map((s) => (s.id === editId ? saved : s)));
     } else {
       setSpots((prev) => [...prev, saved]);
     }
     setModalOpen(false);
+    toast(`Spot „${payload.kuerzel}" gespeichert`);
   }
 
   async function removeSpot() {
@@ -130,19 +186,25 @@ export function EventWorkspacePage() {
     await deleteSpotDb(editId);
     setSpots((prev) => prev.filter((s) => s.id !== editId));
     setModalOpen(false);
+    toast('Spot entfernt');
   }
 
   async function onSpotDrag(id: string, lat: number, lng: number) {
     const m = rematchSpot(lat, lng, tracks);
     const spot = spots.find((s) => s.id === id);
     if (!spot || !eventUuid) return;
-    const saved = await saveSpot(eventUuid, {
-      kuerzel: spot.kuerzel,
-      lat: m.lat,
-      lng: m.lng,
-      kmResults: m.kmResults,
-    }, id);
+    const saved = await saveSpot(
+      eventUuid,
+      {
+        kuerzel: spot.kuerzel,
+        lat: m.lat,
+        lng: m.lng,
+        kmResults: m.kmResults,
+      },
+      id,
+    );
     setSpots((prev) => prev.map((s) => (s.id === id ? saved : s)));
+    toast(`Spot „${spot.kuerzel}" aktualisiert`);
   }
 
   if (loading) {
@@ -160,16 +222,27 @@ export function EventWorkspacePage() {
     );
   }
 
+  const galleryUrl = prevEventId
+    ? `https://www.sportograf.com/de/gallery/${prevEventId}`
+    : null;
+
   return (
     <div className="flex h-[calc(100vh-120px)] flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Link to="/" className="text-sm text-navy underline">
           ← Events
         </Link>
-        <span className="font-semibold text-navy">
-          {sportografId}
-          {prevEventId ? ` · Vorjahr ${prevEventId}` : ''}
-        </span>
+        <span className="font-semibold text-navy">{sportografId}</span>
+        {galleryUrl && (
+          <a
+            href={galleryUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-semibold text-navy underline"
+          >
+            Vorjahresgalerie
+          </a>
+        )}
         <div className="ml-auto flex rounded-lg border border-slate-200 p-0.5">
           {(['planning', 'spotinfo'] as EventPhase[]).map((p) => (
             <button
@@ -197,7 +270,10 @@ export function EventWorkspacePage() {
               accept=".gpx"
               multiple
               className="hidden"
-              onChange={(e) => handleGpx(e.target.files)}
+              onChange={(e) => {
+                void handleGpx(e.target.files);
+                e.target.value = '';
+              }}
             />
           </label>
           <label className="cursor-pointer">
@@ -210,7 +286,7 @@ export function EventWorkspacePage() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void handleKml(f);
+                if (f) void handleKmlFile(f);
                 e.target.value = '';
               }}
             />
@@ -224,11 +300,15 @@ export function EventWorkspacePage() {
             <option value="satellite">Satellite</option>
             <option value="topo">OpenTopoMap</option>
           </select>
-          {tracks.map((t) => (
+          {tracks.map((t, i) => (
             <span
               key={t.id}
               className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs"
             >
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ background: t.color ?? trackColor(i) }}
+              />
               {t.name} ({t.totalKm.toFixed(1)} km)
               <button
                 type="button"
@@ -236,6 +316,7 @@ export function EventWorkspacePage() {
                 onClick={async () => {
                   await deleteTrackDb(t.id);
                   setTracks((prev) => prev.filter((x) => x.id !== t.id));
+                  toast('Strecke entfernt');
                 }}
               >
                 ×
@@ -247,22 +328,42 @@ export function EventWorkspacePage() {
 
       {phase === 'spotinfo' && (
         <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
-          SpotInfo: Ist-Positionen nach dem Event — gleiche Karte, GPX für KM. (Erweiterte
-          Erfassung wie v1 folgt.)
+          SpotInfo: Ist-Positionen nach dem Event — Karte + Link-Eingabe wie in v1. PDF-Export
+          folgt.
         </p>
       )}
 
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1fr_280px]">
-        <div className="min-h-[320px] overflow-hidden rounded-lg border border-slate-200">
-          <Suspense fallback={<div className="flex h-full items-center justify-center">Karte…</div>}>
-            <EventMap
-              tracks={tracks}
-              spots={spots}
-              tileLayer={tile}
-              onMapClick={phase === 'planning' ? openNewSpot : openNewSpot}
-              onSpotDrag={onSpotDrag}
-            />
-          </Suspense>
+        <div className="flex min-h-[320px] flex-col gap-2 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200">
+            <Suspense fallback={<div className="flex h-full items-center justify-center">Karte…</div>}>
+              <EventMap
+                tracks={tracks}
+                spots={spots}
+                tileLayer={tile}
+                onMapClick={openNewSpot}
+                onSpotClick={openEditById}
+                onSpotDrag={phase === 'planning' ? onSpotDrag : undefined}
+                scrubPoint={scrubPoint}
+              />
+            </Suspense>
+          </div>
+          {tracks.some((t) => t.hasEle) && (
+            <Suspense fallback={null}>
+              <ElevationChart
+                tracks={tracks}
+                onScrub={(lat, lng) => {
+                  const active = tracks.find((t) => t.hasEle);
+                  setScrubPoint({
+                    lat,
+                    lng,
+                    color: active?.color ?? '#1C2B6B',
+                  });
+                }}
+                onScrubEnd={() => setScrubPoint(null)}
+              />
+            </Suspense>
+          )}
         </div>
         <aside className="flex flex-col gap-3 overflow-y-auto">
           <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -285,10 +386,7 @@ export function EventWorkspacePage() {
               ))}
             </ul>
           </div>
-          <HistoricalPanel
-            prevEventId={prevEventId}
-            catalogYears={catalogYears}
-          />
+          <HistoricalPanel prevEventId={prevEventId} catalogYears={catalogYears} />
         </aside>
       </div>
 
@@ -297,11 +395,29 @@ export function EventWorkspacePage() {
         kuerzel={draftKuerzel}
         lat={draftLat}
         lng={draftLng}
-        kmResults={draftKm}
+        tracks={tracks}
         onKuerzelChange={setDraftKuerzel}
         onClose={() => setModalOpen(false)}
-        onSave={() => void persistSpot()}
+        onSave={(p) => void persistSpot(p)}
         onDelete={editId ? () => void removeSpot() : undefined}
+      />
+
+      <KMLPreviewModal
+        open={kmlOpen}
+        spots={kmlPreview}
+        selected={kmlSelected}
+        onToggle={(i) => {
+          setKmlSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(i)) next.delete(i);
+            else next.add(i);
+            return next;
+          });
+        }}
+        onSelectAll={() => setKmlSelected(new Set(kmlPreview.map((_, i) => i)))}
+        onSelectNone={() => setKmlSelected(new Set())}
+        onConfirm={() => void confirmKmlImport()}
+        onClose={() => setKmlOpen(false)}
       />
     </div>
   );

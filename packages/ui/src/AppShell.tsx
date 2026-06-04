@@ -4,10 +4,11 @@ import { BrandLogo } from './BrandLogo';
 interface AppShellProps {
   title: string;
   subtitle?: string;
+  headerExtra?: ReactNode;
   children: ReactNode;
 }
 
-export function AppShell({ title, subtitle, children }: AppShellProps) {
+export function AppShell({ title, subtitle, headerExtra, children }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
       <header
@@ -26,6 +27,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
               <p className="truncate text-xs text-white/70">{subtitle}</p>
             ) : null}
           </div>
+          {headerExtra ? <div className="ml-auto shrink-0">{headerExtra}</div> : null}
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 p-4">{children}</main>
