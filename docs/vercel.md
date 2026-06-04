@@ -21,9 +21,17 @@ The `vercel.json` in `apps/teamleader` runs install/build from the repo root.
 
 ## 2. Photographer app
 
-Same as above, with Root Directory `apps/photographer`.
+| Setting | Value |
+|---------|--------|
+| Root Directory | **Repository root** (`.`) — uses `apps/photographer/vercel.json` paths |
+| Framework Preset | Vite |
+| Include files outside root | not required when root is repo |
+
+Same env vars as Teamleader. Optional: `VITE_TL_APP_URL` for cross-link.
 
 **Production (Teamleader):** https://tactic-tool-teamleader.vercel.app
+
+**Production (Photographer):** Vercel project `photographer` — set Root Directory to repo root after first deploy.
 
 Login: https://tactic-tool-teamleader.vercel.app/login
 
