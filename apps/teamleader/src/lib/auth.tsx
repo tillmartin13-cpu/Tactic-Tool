@@ -22,6 +22,7 @@ interface AuthContextValue {
   session: boolean;
   profile: Profile | null;
   signIn: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   bypassAuth: boolean;
@@ -82,6 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (error) throw error;
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -94,11 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       signIn,
+      resetPassword,
       signOut,
       refreshProfile,
       bypassAuth,
     }),
-    [loading, session, profile, signIn, signOut, refreshProfile, bypassAuth],
+    [loading, session, profile, signIn, resetPassword, signOut, refreshProfile, bypassAuth],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -24,6 +24,17 @@
 
 4. **Teamleader-App** → `/login` mit E-Mail + Passwort.
 
+### „Invalid login credentials“
+
+| Ursache | Lösung |
+|--------|--------|
+| User existiert nicht | Supabase → **Authentication → Users → Add user** |
+| Falsches Passwort | In Supabase User öffnen → Passwort neu setzen, oder „Passwort vergessen?“ in der App |
+| E-Mail nicht bestätigt | Beim Anlegen **Auto Confirm User** aktivieren |
+| Falsches Supabase-Projekt auf Vercel | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` müssen zum Projekt **Eventplaner** passen |
+
+Es gibt **keine Selbstregistrierung** in der App (internes Tool).
+
 ## Weitere User
 
 | Rolle | Anlegen |
