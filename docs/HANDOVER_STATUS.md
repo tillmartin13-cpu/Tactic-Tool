@@ -7,7 +7,7 @@ Stand nach Batch „alles aus Handover“. Zum Testen auf Vercel deployen + Supa
 | App | Zielgerät | Status |
 |-----|-----------|--------|
 | **Teamleader** | Desktop-first, auch Handy | https://tactic-tool-teamleader.vercel.app — Planung, SpotInfo, TL-Tools |
-| **Photographer** | Mobile-first | Eigenes Vercel-Projekt (`apps/photographer`) — Meine Events, Spot, Kamera-Check, Report |
+| **Photographer** | Mobile-first | https://photographer-opal.vercel.app — Meine Events, Spot, Kamera-Check, Report |
 
 Design-Details: `docs/design-targets.md`
 

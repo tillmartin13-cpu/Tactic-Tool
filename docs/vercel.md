@@ -31,7 +31,9 @@ Same env vars as Teamleader. Optional: `VITE_TL_APP_URL` for cross-link.
 
 **Production (Teamleader):** https://tactic-tool-teamleader.vercel.app
 
-**Production (Photographer):** Vercel project `photographer` — set Root Directory to repo root after first deploy.
+**Production (Photographer):** https://photographer-opal.vercel.app
+
+Vercel project `photographer` — Repository Root `.`, uses `/vercel.json` at repo root.
 
 Login: https://tactic-tool-teamleader.vercel.app/login
 
