@@ -1,0 +1,29 @@
+{
+  "name": "sg-spotinfo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tactic Tool — Sportograf event planning platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:tl": "turbo run dev --filter=@sg/teamleader",
+    "dev:photo": "turbo run dev --filter=@sg/photographer",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "scan:infofiles": "npx tsx scripts/scan-infofiles.ts",
+    "import:catalog": "npx tsx scripts/import-catalog.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.9.2"
+}

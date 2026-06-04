@@ -1,0 +1,23 @@
+{
+  "name": "Tactic Tool — Teamleader",
+  "short_name": "Tactic TL",
+  "description": "Sportograf spot planning for team leaders",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1C2B6B",
+  "theme_color": "#1C2B6B",
+  "icons": [
+    {
+      "src": "/sportograf-logo.svg",
+      "sizes": "400x295",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

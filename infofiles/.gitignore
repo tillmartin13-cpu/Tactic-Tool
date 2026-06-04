@@ -1,0 +1,9 @@
+# Uploads stay local; do not commit large exports
+**/*
+!README.md
+!.gitignore
+!2024/
+!2025/
+!2024/.gitkeep
+!2025/.gitkeep
+!catalog.json

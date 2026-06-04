@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@sg/auth": ["../../packages/auth/src"],
+      "@sg/gpx": ["../../packages/gpx/src"],
+      "@sg/map": ["../../packages/map/src"],
+      "@sg/ui": ["../../packages/ui/src"]
+    }
+  },
+  "include": ["src", "api", "vite.config.ts"]
+}
