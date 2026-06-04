@@ -23,10 +23,14 @@ The `vercel.json` in `apps/teamleader` runs install/build from the repo root.
 
 Same as above, with Root Directory `apps/photographer`.
 
-Suggested hostnames (example):
+**Production (Teamleader):** https://tactic-tool-teamleader.vercel.app
 
-- `tactic-tl.sportograf.com` → teamleader project (example)
-- `tactic.sportograf.com` → photographer project (example)
+Login: https://tactic-tool-teamleader.vercel.app/login
+
+Suggested custom domains (optional):
+
+- `tactic-tl.sportograf.com` → teamleader project
+- `tactic.sportograf.com` → photographer project
 
 ## Local development
 
