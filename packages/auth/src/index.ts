@@ -1,4 +1,12 @@
 export { ADMIN_EMAIL } from './constants';
+export type { EventAccess, UserEventMembership } from './eventAccess';
+export {
+  canAccessTeamleaderApp,
+  canAccessPhotographerApp,
+  eventAccessFor,
+  canEditEventPlanning,
+  canViewEventWorkspace,
+} from './eventAccess';
 export type { UserRole } from './roles';
 export {
   USER_ROLES,

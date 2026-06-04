@@ -1,4 +1,4 @@
-import { canEditSpots, type UserRole } from '@sg/auth';
+import { canEditEventPlanning, type EventAccess } from '@sg/auth';
 import { Button } from '@sg/ui';
 import { useMemo, useState } from 'react';
 import type { PhotographerProfile } from '../../types/event';
@@ -137,6 +137,6 @@ function PhotographerDragCard({
   );
 }
 
-export function canAssignPhotographers(role: UserRole | null | undefined): boolean {
-  return role != null && canEditSpots(role);
+export function canAssignPhotographersForEvent(access: EventAccess): boolean {
+  return canEditEventPlanning(access);
 }

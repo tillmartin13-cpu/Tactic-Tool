@@ -33,7 +33,7 @@
 | E-Mail nicht bestätigt | Beim Anlegen **Auto Confirm User** aktivieren |
 | Falsches Supabase-Projekt auf Vercel | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` müssen zum Projekt **Eventplaner** passen |
 
-Es gibt **keine Selbstregistrierung** in der App (internes Tool).
+**Selbstregistrierung:** Teamleader-App → `/signup` (Standard-Rolle `photographer`). TL pro Event über `event_teamleaders`.
 
 ## Weitere User
 

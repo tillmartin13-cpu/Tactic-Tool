@@ -1,12 +1,20 @@
 import { Button } from '@sg/ui';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { createEvent, deleteEvent, listCatalogYears, listEvents } from '../lib/events';
+import {
+  createEvent,
+  deleteEvent,
+  listCatalogYears,
+  listEvents,
+  listEventsForUser,
+} from '../lib/events';
 import type { DbEvent, EventIntent } from '../types/event';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { profile, membership, bypassAuth } = useAuth();
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [catalogYears, setCatalogYears] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +30,11 @@ export function HomePage() {
   useEffect(() => {
     (async () => {
       try {
-        const [ev, years] = await Promise.all([listEvents(), listCatalogYears()]);
+        const ev =
+          bypassAuth || !profile
+            ? await listEvents()
+            : await listEventsForUser(profile.id, profile.role, membership);
+        const years = await listCatalogYears();
         setEvents(ev);
         setCatalogYears(years);
       } catch (e) {
@@ -31,7 +43,13 @@ export function HomePage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [profile, membership, bypassAuth]);
+
+  const canCreateEvents =
+    bypassAuth ||
+    profile?.role === 'admin' ||
+    profile?.role === 'teamleader' ||
+    membership.teamleaderEventIds.length > 0;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -41,14 +59,17 @@ export function HomePage() {
       return;
     }
     try {
-      const created = await createEvent({
-        eventId,
-        name,
-        date: date || undefined,
-        type: eventType || undefined,
-        prevEventId: prevEventId || undefined,
-        intent,
-      });
+      const created = await createEvent(
+        {
+          eventId,
+          name,
+          date: date || undefined,
+          type: eventType || undefined,
+          prevEventId: prevEventId || undefined,
+          intent,
+        },
+        profile?.id,
+      );
       sessionStorage.setItem(`tactic_intent_${created.id}`, intent);
       navigate(`/events/${created.id}`);
     } catch (err) {
@@ -78,11 +99,13 @@ export function HomePage() {
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Abbrechen' : 'Neues Event'}
-        </Button>
-      </div>
+      {canCreateEvents && (
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Abbrechen' : 'Neues Event'}
+          </Button>
+        </div>
+      )}
 
       {showForm && (
         <form

@@ -5,6 +5,7 @@ import {
   trackToGeojson,
   type Track,
 } from '@sg/gpx';
+import type { UserEventMembership, UserRole } from '@sg/auth';
 import type { DbEvent, DbSpot, DbTrack, EventIntent, WorkspaceSpot } from '../types/event';
 import { supabase } from './supabase';
 
@@ -34,14 +35,41 @@ export async function listEvents(): Promise<DbEvent[]> {
   return data ?? [];
 }
 
-export async function createEvent(input: {
-  eventId: string;
-  name?: string;
-  date?: string;
-  type?: string;
-  prevEventId?: string;
-  intent: EventIntent;
-}): Promise<DbEvent> {
+/** Events visible in the Teamleader app for this user (event-scoped, not global role only). */
+export async function listEventsForUser(
+  userId: string,
+  globalRole: UserRole,
+  membership: UserEventMembership,
+): Promise<DbEvent[]> {
+  if (!supabase) return [];
+  if (globalRole === 'admin') return listEvents();
+
+  const ids = new Set([
+    ...membership.teamleaderEventIds,
+    ...membership.officeEventIds,
+  ]);
+  if (!ids.size) return [];
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .in('id', [...ids])
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createEvent(
+  input: {
+    eventId: string;
+    name?: string;
+    date?: string;
+    type?: string;
+    prevEventId?: string;
+    intent: EventIntent;
+  },
+  createdByUserId?: string,
+): Promise<DbEvent> {
   if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase
     .from('events')
@@ -51,10 +79,19 @@ export async function createEvent(input: {
       date: input.date || null,
       type: input.type || null,
       prev_event_id: input.prevEventId?.trim() || null,
+      created_by: createdByUserId ?? null,
     })
     .select()
     .single();
   if (error) throw error;
+
+  if (createdByUserId) {
+    await supabase.from('event_teamleaders').upsert({
+      event_id: data.id,
+      user_id: createdByUserId,
+    });
+  }
+
   return data;
 }
 

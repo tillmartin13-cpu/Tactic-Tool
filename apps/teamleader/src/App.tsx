@@ -6,18 +6,24 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { EventWorkspacePage } from './pages/EventWorkspacePage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { SignUpPage } from './pages/SignUpPage';
+
+const photoAppUrl = import.meta.env.VITE_PHOTO_APP_URL as string | undefined;
 
 function AppHeader() {
-  const { session, profile, signOut, bypassAuth } = useAuth();
+  const { session, profile, signOut, bypassAuth, canUsePhotographerApp } = useAuth();
   if (bypassAuth || !session) return null;
   return (
-    <button
-      type="button"
-      onClick={() => void signOut()}
-      className="text-xs text-white/80 underline hover:text-white"
-    >
-      {profile ? `${profile.name} (${roleLabel(profile.role)})` : 'Abmelden'}
-    </button>
+    <div className="flex flex-col items-end gap-1 text-xs text-white/90">
+      <button type="button" onClick={() => void signOut()} className="underline hover:text-white">
+        {profile ? `${profile.name} (${roleLabel(profile.role)})` : 'Abmelden'}
+      </button>
+      {canUsePhotographerApp && photoAppUrl ? (
+        <a href={photoAppUrl} className="underline hover:text-white">
+          Fotografen-App →
+        </a>
+      ) : null}
+    </div>
   );
 }
 
@@ -32,6 +38,7 @@ export default function App() {
         >
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignUpPage />} />
             <Route
               path="/"
               element={

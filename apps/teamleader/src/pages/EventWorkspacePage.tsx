@@ -6,9 +6,10 @@ import { Link, useParams } from 'react-router-dom';
 import { SpotModal } from '../components/SpotModal';
 import { HistoricalPanel } from '../features/history/HistoricalPanel';
 import {
-  canAssignPhotographers,
+  canAssignPhotographersForEvent,
   PhotographerPanel,
 } from '../features/photographers/PhotographerPanel';
+import { eventAccessFor, canEditEventPlanning } from '@sg/auth';
 import { SpotDropTarget } from '../features/photographers/SpotDropTarget';
 import {
   addEventPhotographer,
@@ -43,8 +44,15 @@ const ElevationChart = lazy(() =>
 export function EventWorkspacePage() {
   const { eventUuid } = useParams<{ eventUuid: string }>();
   const { toast } = useToast();
-  const { profile, bypassAuth } = useAuth();
-  const canAssign = bypassAuth || canAssignPhotographers(profile?.role);
+  const { profile, membership, bypassAuth } = useAuth();
+  const eventAccess =
+    eventUuid && profile
+      ? eventAccessFor(eventUuid, profile.role, membership)
+      : bypassAuth
+        ? 'admin'
+        : 'none';
+  const canEdit = bypassAuth || canEditEventPlanning(eventAccess);
+  const canAssign = canEdit;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sportografId, setSportografId] = useState('');
@@ -329,6 +337,17 @@ export function EventWorkspacePage() {
           ← Events
         </Link>
         <span className="font-semibold text-navy">{sportografId}</span>
+        {profile && eventAccess !== 'none' && (
+          <span className="rounded-full bg-navy/10 px-2 py-0.5 text-xs font-semibold text-navy">
+            {eventAccess === 'teamleader'
+              ? 'Teamleiter'
+              : eventAccess === 'office'
+                ? 'Office'
+                : eventAccess === 'admin'
+                  ? 'Admin'
+                  : 'Lesen'}
+          </span>
+        )}
         {galleryUrl && (
           <a
             href={galleryUrl}
@@ -355,7 +374,13 @@ export function EventWorkspacePage() {
         </div>
       </div>
 
-      {phase === 'planning' && (
+      {eventAccess === 'office' && (
+        <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
+          Office-Ansicht: Planung ansehen, keine Bearbeitung.
+        </p>
+      )}
+
+      {phase === 'planning' && canEdit && (
         <div className="flex flex-wrap gap-2">
           <label className="cursor-pointer">
             <span className="inline-flex rounded-md bg-navy px-3 py-1.5 text-sm font-medium text-white">
@@ -430,7 +455,7 @@ export function EventWorkspacePage() {
       )}
 
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[200px_1fr_260px]">
-        {phase === 'planning' && (
+        {phase === 'planning' && canEdit && (
           <aside className="order-2 flex flex-col overflow-y-auto lg:order-1">
             <PhotographerPanel
               eventPhotographers={eventPhotographers}
@@ -449,9 +474,9 @@ export function EventWorkspacePage() {
                 tracks={tracks}
                 spots={mapSpots}
                 tileLayer={tile}
-                onMapClick={openNewSpot}
-                onSpotClick={openEditById}
-                onSpotDrag={phase === 'planning' ? onSpotDrag : undefined}
+                onMapClick={canEdit ? openNewSpot : undefined}
+                onSpotClick={canEdit ? openEditById : undefined}
+                onSpotDrag={phase === 'planning' && canEdit ? onSpotDrag : undefined}
                 canDropPhotographer={phase === 'planning' && canAssign}
                 onPhotographerDrop={(spotId, photographerId) =>
                   void handleAssignPhotographer(spotId, photographerId)
@@ -523,7 +548,7 @@ export function EventWorkspacePage() {
         tracks={tracks}
         assignments={editSpot?.assignments}
         eventPhotographers={eventPhotographers}
-        canAssign={canAssign && !!editId}
+        canAssign={canAssign && !!editId && eventAccess !== 'office'}
         onAssignPhotographer={
           editId
             ? (photographerId) => void handleAssignPhotographer(editId, photographerId)
